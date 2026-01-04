@@ -15,5 +15,4 @@ A lightweight Python-based honeypot designed to detect unauthorized connection a
 ## Installation
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/ziyan/Sentinel-SSH.git](https://github.com/ziyan/Sentinel-SSH.git)
-   cd Sentinel-SSH
+   git clone https://github.com/Ziyan909/Sentinel-SSH.git
