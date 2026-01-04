@@ -1,41 +1,74 @@
 import os
 import socket
-from dotenv import load_dotenv
 import requests
+from dotenv import load_dotenv
 
-load_dotenv("bottokens.env")
+# --- Load Environment Variables ---
+load_dotenv("bottokens.env")   
 
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-MESSAGE = "It's Working huh"
+MESSAGE = os.getenv("MESSAGE", "Unauthorized connection detected!")
+PORT = int(os.getenv("PORT", 2222))   # default port is 2222
 
-def send_telegram_alert(text):
+
+# --- Safety Checks ---
+if not TOKEN or not CHAT_ID:
+    raise SystemExit(
+        "\n[ERROR] Missing TOKEN or CHAT_ID.\n"
+        "Create a bottokens.env file with:\n"
+        "TOKEN=your_bot_token\n"
+        "CHAT_ID=your_chat_id\n"
+    )
+
+
+# --- Telegram Alert Function ---
+def send_telegram_alert(text: str):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": text}
-    
-    response = requests.post(url, data=payload)
-    return response.json()
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": text
+    }
 
-print(send_telegram_alert(MESSAGE))
+    try:
+        response = requests.post(url, data=payload, timeout=5)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"[ERROR] Failed to send Telegram alert: {e}")
+        return False
 
+    return True
+
+
+# --- Honeypot Server ---
 def start_honeypot():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    server.bind(("0.0.0.0", 2222))
-    
+    try:
+        server.bind(("0.0.0.0", PORT))
+    except OSError:
+        raise SystemExit(f"[ERROR] Port {PORT} is already in use. Try another port.")
+
     server.listen(5)
-    print("[-] Honeypot is active... ")
-    send_telegram_alert(" Sentinel-SSH: Honeypot is now LIVE and monitoring port 2222.")
+
+    print(f"[-] Honeypot active on port {PORT}")
+    send_telegram_alert(f"🛡 Sentinel-SSH active.\nListening on port {PORT}...")
 
     while True:
         client, addr = server.accept()
         attacker_ip = addr[0]
-        
-        print(f"[!] Someone just Knocked ip: {attacker_ip}")
-        
-        alert_msg = f" ALERT: Unauthorized connection attempt detected!\nIP: {attacker_ip}\nPort: 2222"
+
+        print(f"[!] Connection detected from: {attacker_ip}")
+
+        alert_msg = (
+            "🚨 ALERT: Unauthorized connection detected\n"
+            f"🌍 IP: {attacker_ip}\n"
+            f"🔌 Port: {PORT}"
+        )
+
         send_telegram_alert(alert_msg)
-        
         client.close()
 
-start_honeypot()
+
+if __name__ == "__main__":
+    start_honeypot()
